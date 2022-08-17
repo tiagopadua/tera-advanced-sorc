@@ -15,6 +15,9 @@ module.exports = function supersorc(mod) {
 	let MB_active = false
 	let bs = false
 	let clientTime
+	let hasFireBuff = false
+	let hasIceBuff = false
+	let hasArcaneBuff = false
 	
 	
 	//CDs
@@ -423,12 +426,15 @@ module.exports = function supersorc(mod) {
 		if(mod.game.me.class !== 'sorcerer') return
 		stacks = 0
 		if(!event.alive) MB_active = false
-		event.fireEdge = 4
-		event.iceEdge = 4
-		event.lightningEdge = 4
-		if(event.fireEdge > 0) stacks++
-		if(event.iceEdge > 0) stacks++
-		if(event.lightningEdge > 0) stacks++
+		// event.fireEdge = 4
+		// event.iceEdge = 4
+		// event.lightningEdge = 4
+		// if(event.fireEdge > 0) stacks++
+		// if(event.iceEdge > 0) stacks++
+		// if(event.lightningEdge > 0) stacks++
+		hasFireBuff = event.fireEdge > 0
+		hasIceBuff = event.iceEdge > 0
+		hasArcaneBuff
 		return true
 	})	
 
@@ -462,20 +468,66 @@ module.exports = function supersorc(mod) {
 					
 					replaced = true
 				}
-				if(!isCD_prime && (stacks>=2) && !replaced && fusion_enabled) {
+
+				// fire+ice+arcane = elemental fusion
+				// fire+arcane = arcane storm
+				// fire+ice = prime
+				// ice+arcane = iceberg
+				if(!isCD_fusion && hasFireBuff && hasIceBuff && hasArcaneBuff && !replaced && fusion_enabled) {
+					event.skill.id = fusion_id
+					replaced = true			
+					if(bs) {
+						event.dest = bossloc
+					} else {
+						fusion(distance,0)
+						return false
+					}
+				}
+				if(!isCD_prime && hasFireBuff && hasIceBuff && !replaced) {
 					event.skill.id = prime_id
 					replaced = true			
-					if(bs) event.dest = bossloc
-					if(!bs) {
+					if(bs) {
+						event.dest = bossloc
+					} else {
 						prime(distance,0)
 						return false
 					}
-				}					
-				if(!isCD_fusion && (stacks>=2) && !replaced && fusion_enabled && MB_active) {
-					event.skill.id = fusion_id
-					replaced = true
-					if(bs) event.dest = bossloc	
-				}										
+				}
+				if(!isCD_iceberg && hasIceBuff && hasArcaneBuff && !replaced) {
+					event.skill.id = iceberg_id
+					replaced = true			
+					if(bs) {
+						event.dest = bossloc
+					} else {
+						iceberg(distance,0)
+						return false
+					}
+				}
+				// if(!isCD_arcane_fus && hasFireBuff && hasArcaneBuff && !replaced) {
+				// 	event.skill.id = arcane_fus_id
+				// 	replaced = true			
+				// 	if(bs) {
+				// 		event.dest = bossloc
+				// 	} else {
+				// 		arcane(distance,0)
+				// 		return false
+				// 	}
+				// }
+
+				// if(!isCD_prime && (stacks>=2) && !replaced && fusion_enabled) {
+				// 	event.skill.id = prime_id
+				// 	replaced = true			
+				// 	if(bs) event.dest = bossloc
+				// 	if(!bs) {
+				// 		prime(distance,0)
+				// 		return false
+				// 	}
+				// }					
+				// if(!isCD_fusion && (stacks>=2) && !replaced && fusion_enabled && MB_active) {
+				// 	event.skill.id = fusion_id
+				// 	replaced = true
+				// 	if(bs) event.dest = bossloc	
+				// }										
 			
 				if(!isCD_hail && !replaced) {
 					event.skill.id = hail_id
@@ -609,37 +661,46 @@ module.exports = function supersorc(mod) {
         };
     }
 	
-	function prime(d, n) {
-		CastPrime((Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);
-	}
+		function prime(d, n) {
+			castSkill(prime_id, (Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);
+		}
+		function iceberg(d, n) {
+			castSkill(iceberg_id, (Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);
+		}
+		function arcane(d, n) {
+			castSkill(arcane_fus_id, (Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);
+		}
+		function fusion(d, n) {
+			castSkill(fusion_id, (Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);
+		}
 	
-	function CastPrime(x, y, z, w = 0) {
-		mod.send('C_START_SKILL', 7, {
-			skill: {
-				reserved: 0,
-				npc: false,
-				type: 1,
-				huntingZoneId: 0,
-				id: isCD_prime ? fusion_id : prime_id
-			},
-			w: bs ? bossw : myAngle,
-			loc: {
-					x: bs ? (Math.cos(bossw) * -150) + bossloc.x : myPosition.x,
-					y: bs ? (Math.sin(bossw) * -150) + bossloc.y : myPosition.y,
-					z: bs ? bossloc.z : myPosition.z
-			},
-			dest: {
-				x: x,
-				y: y,
-				z: z
-			},
-			unk: true,
-			moving: false,
-			continue: false,
-			target: 0,
-			unk2: false						
-		})		
-	}
+		function castSkill(skillId, x, y, z, w = 0) {
+			mod.send('C_START_SKILL', 7, {
+				skill: {
+					reserved: 0,
+					npc: false,
+					type: 1,
+					huntingZoneId: 0,
+					id: skillId
+				},
+				w: bs ? bossw : myAngle,
+				loc: {
+						x: bs ? (Math.cos(bossw) * -150) + bossloc.x : myPosition.x,
+						y: bs ? (Math.sin(bossw) * -150) + bossloc.y : myPosition.y,
+						z: bs ? bossloc.z : myPosition.z
+				},
+				dest: {
+					x: x,
+					y: y,
+					z: z
+				},
+				unk: true,
+				moving: false,
+				continue: false,
+				target: 0,
+				unk2: false						
+			})
+		}
 
 	function lances(d, n) {
 		CastLances((Math.cos(myAngle) * d) + myPosition.x, (Math.sin(myAngle) * d) + myPosition.y, myPosition.z + n, myAngle);

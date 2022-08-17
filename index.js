@@ -434,7 +434,7 @@ module.exports = function supersorc(mod) {
 		// if(event.lightningEdge > 0) stacks++
 		hasFireBuff = event.fireEdge > 0
 		hasIceBuff = event.iceEdge > 0
-		hasArcaneBuff
+		hasArcaneBuff = event.lightningEdge > 0
 		return true
 	})	
 
